@@ -6,3 +6,18 @@
 
 ## Skrypt
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+`docker exec -it age psql -U postgres`
+

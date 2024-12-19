@@ -1,5 +1,6 @@
 /venv
 
 *.csv
-
 *.gz
+
+__pycache__
