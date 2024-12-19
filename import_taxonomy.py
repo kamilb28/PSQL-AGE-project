@@ -3,18 +3,47 @@ import psycopg2
 import csv
 import os
 
-# Parametry połączenia z PostgreSQL AGE
 DB_CONFIG = {
     'dbname': 'wikipedia_taxonomy',
     'user': 'postgres',
-    'password': None, # edit
+    'password': 'root',  # edit
     'host': 'localhost',
     'port': 5432
 }
 
 TAXONOMY_FILE = 'taxonomy_iw.csv.gz'
 POPULARITY_FILE = 'popularity_iw.csv.gz'
-SQL_DIR = 'sql_queries'
+SQL_DIR = 'sql'
+
+
+def create_database_if_not_exists():
+    """Creates the database if it does not exist."""
+    conn = None
+    try:
+        conn = psycopg2.connect(
+            dbname='postgres',
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password'],
+            host=DB_CONFIG['host'],
+            port=DB_CONFIG['port']
+        )
+        conn.autocommit = True
+
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT 1 FROM pg_catalog.pg_database WHERE datname = '{DB_CONFIG['dbname']}'")
+            exists = cur.fetchone()
+            if not exists:
+                cur.execute(f"CREATE DATABASE {DB_CONFIG['dbname']}")
+                print(f"Database '{DB_CONFIG['dbname']}' created successfully.")
+            else:
+                print(f"Database '{DB_CONFIG['dbname']}' already exists.")
+
+    except Exception as e:
+        print(f"Error while creating database: {e}")
+
+    finally:
+        if conn:
+            conn.close()
 
 
 def execute_sql_file(conn, filepath):
@@ -29,22 +58,27 @@ def execute_sql_file(conn, filepath):
 def import_gz_to_table(conn, gz_file, table_name):
     csv_file = gz_file.replace('.gz', '')
     
-    with gzip.open(gz_file, 'rt', encoding='utf-8') as f_in, open(csv_file, 'w', encoding='utf-8') as f_out:
-        f_out.writelines(f_in)
-    print(f"Plik {gz_file} został rozpakowany.")
+    if not os.path.exists(csv_file):
+        with gzip.open(gz_file, 'rt', encoding='utf-8') as f_in, open(csv_file, 'w', encoding='utf-8') as f_out:
+            f_out.writelines(f_in)
+        print(f"Plik {gz_file} został rozpakowany.")
 
-    with conn.cursor() as cur, open(csv_file, 'r', encoding='utf-8') as f:
-        reader = csv.reader(f)
-        next(reader)  # Pominięcie nagłówka
+    with conn.cursor() as cur, open(csv_file, 'r', encoding='utf-8', newline='') as f:
+        reader = csv.reader(f, quotechar='"', delimiter=',', escapechar='\\')
+        print("INSERTING...")
         for row in reader:
-            cur.execute(f"INSERT INTO {table_name} VALUES (%s, %s)", row)
+            try: 
+                cur.execute(f"INSERT INTO {table_name} VALUES (%s, %s)", row)
+            except Exception as e:
+                print(f"Error inserting: {row}, error: {e}")
+                continue
     conn.commit()
-    print(f"Dane z {gz_file} zostały zaimportowane do tabeli {table_name}.")
-
-    os.remove(csv_file)
+    print(f"Dane z {csv_file} zostały zaimportowane do tabeli {table_name}.")
 
 
 def main():
+    create_database_if_not_exists()
+    conn = None
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         print("Połączono z bazą danych.")
