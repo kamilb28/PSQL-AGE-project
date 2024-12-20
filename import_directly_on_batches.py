@@ -20,7 +20,7 @@ TAXONOMY_FILE = 'taxonomy_iw.csv.gz'
 POPULARITY_FILE = 'popularity_iw.csv.gz'
 SQL_DIR = 'sql'
 
-BATCH_SIZE = 500000
+BATCH_SIZE = 5
 
 def import_nodes_and_edges(conn, gz_taxonomy_file):
 
@@ -47,10 +47,9 @@ def import_nodes_and_edges(conn, gz_taxonomy_file):
                     WITH [{batch_data}] AS batch_data
 
                     UNWIND batch_data AS row
-
-                    MATCH (c:Category {{name: row.a}})
-                    MATCH (sc:Category {{name: row.b}})
-                    MATCH (c)-[rel:SUBCATEGORY]->(sc)
+                    MERGE (c:Category {{name: row.a}})
+                    MERGE (sc:Category {{name: row.b}})
+                    MERGE (c)-[rel:SUBCATEGORY]->(sc)
                     RETURN rel
                     $$) AS (a agtype);
                 """
@@ -104,7 +103,7 @@ def set_popularity(conn, gz_popularity_file):
 
                     UNWIND batch_data AS row
 
-                    MATCH (c:Category {{name: row.name}})
+                    MERGE (c:Category {{name: row.name}})
                     SET n.popularity = row.popularity
                     RETURN count(*) AS a
                     $$) AS (a agtype);
