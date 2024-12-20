@@ -54,7 +54,7 @@ def import_nodes_and_edges(conn, gz_taxonomy_file):
                     $$) AS (a agtype);
                 """
             
-            #print(query)
+            print(query)
 
             cur.execute(query)
 
@@ -67,6 +67,8 @@ def import_nodes_and_edges(conn, gz_taxonomy_file):
                 insert_batch(batch_data[:-1])
                 batch.clear()
                 batch_data = ""
+                conn.commit()
+                return
 
         # remaining rows in the last partial batch
         insert_batch(batch_data[:-1])
@@ -104,7 +106,7 @@ def set_popularity(conn, gz_popularity_file):
                     UNWIND batch_data AS row
 
                     MERGE (c:Category {{name: row.name}})
-                    SET n.popularity = row.popularity
+                    SET c.popularity = row.popularity
                     RETURN count(*) AS a
                     $$) AS (a agtype);
                 """
@@ -113,13 +115,17 @@ def set_popularity(conn, gz_popularity_file):
 
         for row in reader:
             category_name, popularity = row
+            category_name = re.sub(r'["\'$]', '', category_name)
+
             batch.append({"name": category_name, "popularity": popularity})
             batch_data += f"{{name: \"{category_name}\", popularity: {popularity}}},"
             
-            if len(batch) >= BATCH_SIZE:
+            if len(batch) >= 50000:
                 update_popularity_batch(batch_data[:-1])
                 batch.clear()
                 batch_data = ""
+                #conn.commit()
+                #return
 
         # remaining rows in the last partial batch
         update_popularity_batch(batch_data[:-1])
@@ -139,7 +145,7 @@ def main():
         execute_sql_file(conn, os.path.join(SQL_DIR, 'create_graph.sql'))
 
         import_nodes_and_edges(conn, TAXONOMY_FILE)
-        #set_popularity(ag, POPULARITY_FILE)
+        set_popularity(conn, POPULARITY_FILE)
 
     except Exception as e:
         print(f"Error: {e}")

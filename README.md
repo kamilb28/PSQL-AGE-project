@@ -27,3 +27,4 @@ import_taxonomy dla stowrzenia tabel tymczasowych psql i z nich grafu w age (nie
     RETURN c.name, sc.name
 $$) AS (c agtype, sc agtype);`
 
+`SELECT * FROM drop_graph('wiki_taxonomy_graph', true);`
