@@ -2,5 +2,7 @@
 
 *.csv
 *.gz
+*.pkl
+commands.txt
 
 __pycache__
