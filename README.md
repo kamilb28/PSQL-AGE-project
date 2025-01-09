@@ -28,3 +28,8 @@ import_taxonomy dla stowrzenia tabel tymczasowych psql i z nich grafu w age (nie
 $$) AS (c agtype, sc agtype);`
 
 `SELECT * FROM drop_graph('wiki_taxonomy_graph', true);`
+
+
+
+### add more resorces 
+`docker update --memory=2g --memory-swap=3g age-container`
