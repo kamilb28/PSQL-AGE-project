@@ -127,16 +127,56 @@ def task_8():
         $$) AS (total_n agtype);
     """
     result_total = run_apache_age_query(query_total)
-    if not result_total:
-        print("No nodes found in the graph.")
-        return
+
+    total_nodes = int(str(result_total[0][0]).strip('"'))
+
+    PAGE_SIZE = 500000
+    num_pages = ceil(total_nodes / PAGE_SIZE)
+
+    no_inbound_ids = []
+    current_offset = 0
+
+    for _ in range(num_pages):
+        query_page = f"""
+            SELECT no_inbound_id
+            FROM cypher('iw_graph', $$
+                MATCH (n)
+                WITH n
+                ORDER BY id(n)
+                SKIP {current_offset}
+                LIMIT {PAGE_SIZE}
+                WITH collect(n) AS page_nodes
+                UNWIND page_nodes AS candidate
+                OPTIONAL MATCH (m)-[:RELATIONSHIP_TYPE]->(candidate)
+                WITH candidate, COUNT(m) AS inbound_count
+                WHERE inbound_count = 0
+                RETURN id(candidate) AS no_inbound_id
+            $$) AS (no_inbound_id agtype);
+        """
+
+        page_result = run_apache_age_query(query_page)
+
+        for row in page_result:
+            raw_str = str(row[0]).strip('"')
+            no_inbound_ids.append(int(raw_str))
+
+        current_offset += PAGE_SIZE
+
+    for nid in no_inbound_ids:
+        print(f" - Node ID={nid}")
+
+def task_9():
+    query_total = """
+        SELECT total_n
+        FROM cypher('iw_graph', $$
+            MATCH (n)
+            RETURN COUNT(n) AS total_n
+        $$) AS (total_n agtype);
+    """
+    result_total = run_apache_age_query(query_total)
 
     total_nodes = int(str(result_total[0][0]).strip('"'))
     print(f"Total nodes in graph: {total_nodes}")
-
-    if total_nodes == 0:
-        print("No nodes at all.")
-        return
 
     PAGE_SIZE = 500000
     num_pages = ceil(total_nodes / PAGE_SIZE)
@@ -171,27 +211,6 @@ def task_8():
         current_offset += PAGE_SIZE
 
     print(f"\nFound {len(no_inbound_ids)} nodes with no inbound edges.\n")
-
-    if not no_inbound_ids:
-        print("No nodes had zero inbound edges.")
-        return
-
-    print("Nodes with no inbound edges:")
-    for nid in no_inbound_ids:
-        print(f" - Node ID={nid}")
-
-#### !!!! DZIALA TAK DLUGO ZE NWM CZY DZIALA (bo opiera sie na 8) !!!!
-def task_9(): 
-    """9. zlicza wezly z celu 8"""
-    query = f"""
-        SELECT COUNT(*) FROM cypher('iw_graph', $$
-            MATCH (n)
-            WHERE NOT EXISTS (n)<-[]-()
-            RETURN n.name
-        $$) AS result(name agtype);
-    """
-    print(query)
-    print(run_apache_age_query(query))
 
 def task_10():
     """10. znajduje wezly z największą liczbą dzieci, może być ich więcej"""
