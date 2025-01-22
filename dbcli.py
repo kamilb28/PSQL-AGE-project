@@ -210,25 +210,11 @@ def task_13(node_name, new_popularity):
 
 def task_14(node_name1, node_name2):
     # 14. Znajduje wszystkie ścieżki pomiędzy dwoma podanymi węzłami, z krawędziami skierowanymi od pierwszego do drugiego węzła
-    query = f"""
-        SELECT * FROM cypher('iw_graph', $$
-            MATCH path = (n {{name: \'{node_name1}\'}})-[*]->(m {{name: \'{node_name2}\'}})
-            RETURN path
-        $$) AS result(path agtype);
-    """
-    print(query)
-    print(run_apache_age_query(query))
+    pass #TODO
 
 def task_15(node_name1, node_name2):
     # 15. zlicza węzły z celu 14
-    query = f"""
-        SELECT COUNT(*) FROM cypher('iw_graph', $$
-            MATCH path = (n {{name: \'{node_name1}\'}})-[*]->(m {{name: \'{node_name2}\'}})
-            RETURN path
-        $$) AS result(count int);
-    """
-    print(query)
-    print(run_apache_age_query(query))
+    pass #TODO
 
 def task_16(node_name, r):
     # 16. policzy popularność w sąsiedztwie węzła o zadanym promieniu; parametrami są: nazwa
@@ -299,16 +285,7 @@ def task_17(node_name1, node_name2):
 def task_18(node_name1, node_name2):
     # 18. znajdzie skierowaną ścieżkę pomiędzy dwoma węzłami o największej popularno±ci spośród
     # wszystkich ścieżek pomiędzy tymi węzłami
-    query = f"""
-        SELECT * FROM cypher('iw_graph', $$
-            MATCH path = (n {{name: \'{node_name1}\'}})-[*]->(m {{name: \'{node_name2}\'}})
-            RETURN path, SUM(node.popularity::float) AS path_popularity
-            ORDER BY path_popularity DESC
-            LIMIT 1
-        $$) AS result(path agtype, path_popularity float);
-    """
-    print(query)
-    print(run_apache_age_query(query))
+    pass #TODO
 
 def main(task_number, *args):
     if task_number == 1:
