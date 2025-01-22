@@ -283,9 +283,23 @@ def task_17(node_name1, node_name2):
     print(run_apache_age_query(query))
 
 def task_18(node_name1, node_name2):
-    # 18. znajdzie skierowaną ścieżkę pomiędzy dwoma węzłami o największej popularno±ci spośród
+    # 18. znajdzie skierowaną ścieżkę pomiędzy dwoma węzłami o największej popularności spośród
     # wszystkich ścieżek pomiędzy tymi węzłami
-    pass #TODO
+    query = f"""
+        WITH paths_cte AS (
+            SELECT * FROM cypher('iw_graph', $$
+                MATCH path = (V:Category {{name: '{node_name1}'}})-[*]->(V2:Category {{name: '{node_name2}'}})
+                UNWIND nodes(path) AS nodes_on_path
+                RETURN nodes_on_path.popularity, path
+            $$) AS result(popularity_on_path float, path agtype)
+        )
+        SELECT path
+        FROM paths_cte
+        ORDER BY popularity_on_path DESC
+        LIMIT 1;
+    """
+    print(query)
+    print(run_apache_age_query(query))
 
 def main(task_number, *args):
     if task_number == 1:
