@@ -1,6 +1,7 @@
 import argparse
 import psycopg2
 import sys
+import json
 
 # Database connection parameters
 DB_PARAMS = {
@@ -23,14 +24,17 @@ def run_apache_age_query(query):
     conn = connect_to_db()
     conn.autocommit = True
     cursor = conn.cursor()
-
-    # Execute SQL commands
-    cursor.execute("LOAD 'age';")
-    cursor.execute("SET search_path TO ag_catalog;")
-    cursor.execute(query);
-    result = cursor.fetchall()
-    conn.close()
-    return result
+    try:
+        cursor.execute("LOAD 'age';")
+        cursor.execute("SET search_path TO ag_catalog;")
+        cursor.execute(query)
+        result = cursor.fetchall()
+        return result
+    except psycopg2.Error as e:
+        print(f"Database error: {e}")
+        return []
+    finally:
+        conn.close()
 
 def task_1(node_name):
     """1. znajduje wszystkie dzieci danego wezla"""
@@ -120,7 +124,7 @@ def task_8():
             WHERE NOT EXISTS (n)<-[]-()
             RETURN n.name
         $$) AS result(name agtype);
-    """
+    """ # etykiety :Category, :has
     print(query)
     print(run_apache_age_query(query))
 
@@ -158,19 +162,27 @@ def task_10():
 def task_11():
     """11. znajduje węzły z najmniejszą liczbę dzieci (liczba dzieci jest większa od zera),"""
     query = f"""
-        WITH aggregated_data AS ( 
-            SELECT start_id, COUNT(end_id) AS num_childs 
-            FROM iw_graph.has 
-            GROUP BY start_id 
-            ORDER BY num_childs 
-            LIMIT 100 
+        WITH aggregated_data AS (
+            SELECT start_id, COUNT(end_id) AS num_childs
+            FROM iw_graph.has
+            GROUP BY start_id
+            HAVING COUNT(end_id) = (
+                SELECT COUNT(end_id)
+                FROM iw_graph.has
+                GROUP BY start_id
+                ORDER BY COUNT(end_id)
+                LIMIT 1
             )
-        SELECT c.properties, a.num_childs 
-        FROM aggregated_data a LEFT JOIN iw_graph."Category" c ON a.start_id = c.id;
+        )
+        SELECT c.properties, a.num_childs
+        FROM aggregated_data a
+        LEFT JOIN iw_graph."Category" c ON a.start_id = c.id;
     """
     print(query)
-    print(run_apache_age_query(query))
-    pass
+    ans = run_apache_age_query(query)
+    ans = list(map(lambda item: (json.loads(item[0])["name"], item[1]), ans))
+    print(ans)
+    print(len(ans))
 
 def task_12(old_name, new_name):
     # """12. Renames a given node"""
@@ -192,6 +204,108 @@ def task_13(node_name, new_popularity):
             SET n.popularity = {new_popularity}
             RETURN n
         $$) AS result(n agtype);
+    """
+    print(query)
+    print(run_apache_age_query(query))
+
+def task_14(node_name1, node_name2):
+    # 14. Znajduje wszystkie ścieżki pomiędzy dwoma podanymi węzłami, z krawędziami skierowanymi od pierwszego do drugiego węzła
+    query = f"""
+        SELECT * FROM cypher('iw_graph', $$
+            MATCH path = (n {{name: \'{node_name1}\'}})-[*]->(m {{name: \'{node_name2}\'}})
+            RETURN path
+        $$) AS result(path agtype);
+    """
+    print(query)
+    print(run_apache_age_query(query))
+
+def task_15(node_name1, node_name2):
+    # 15. zlicza węzły z celu 14
+    query = f"""
+        SELECT COUNT(*) FROM cypher('iw_graph', $$
+            MATCH path = (n {{name: \'{node_name1}\'}})-[*]->(m {{name: \'{node_name2}\'}})
+            RETURN path
+        $$) AS result(count int);
+    """
+    print(query)
+    print(run_apache_age_query(query))
+
+def task_16(node_name, r):
+    # 16. policzy popularność w sąsiedztwie węzła o zadanym promieniu; parametrami są: nazwa
+    # węzła oraz promień sąsiedztwa; popularność sąsiedztwa jest sumą popularności danego
+    # wązła oraz wszystkich węzłów należących do sąsiedztwa
+
+    # -[*..{r}]->   NIE DZIALA!!!
+    if r < 0: raise Exception
+    query = f"""
+        WITH nodes0 AS (
+            SELECT * FROM cypher('iw_graph', $$
+                MATCH (n {{name: '{node_name}'}})
+                RETURN n.name, n.popularity
+            $$) AS result(node_name agtype, popularity float)
+        )
+        """
+
+    def generation_pattern(n):
+        pattern = "-[e1]->"
+        for i in range(1, n+1):
+            pattern += f"()-[e{i+1}]->"
+        return pattern
+
+
+    for i in range(r):
+        path = generation_pattern(i)
+        query += f""",
+        nodes{i+1} AS (
+            SELECT * FROM cypher('iw_graph', $$
+                MATCH (n {{name: '{node_name}'}}){path}(neighbor)
+                RETURN neighbor.name, neighbor.popularity
+            $$) AS result(node_name agtype, popularity float)
+        )
+        """
+
+    union_queries = "\n        UNION ALL\n        ".join([f"SELECT * FROM nodes{i}" for i in range(r + 1)])
+
+    query += f""",
+        combined_nodes AS (
+            {union_queries}
+        )
+        SELECT SUM(popularity) AS total_popularity
+        FROM (SELECT DISTINCT node_name, popularity FROM combined_nodes) AS unique_nodes;
+    """
+    print(query)
+    print(run_apache_age_query(query))
+
+def task_17(node_name1, node_name2):
+    # 17. policzy popularność na najkrótszej ścieżce między dwoma danymi węzłami, zgodnie ze
+    # skierowaniem; popularność na najkrótszej ścieżce jest sumą popularnośi wszystkich węzłów
+    # znajdujących się na najkrótszej ścieżce
+    query = f"""
+        WITH paths_cte AS (
+            SELECT * FROM cypher('iw_graph', $$
+                MATCH path = (V:Category {{name: '{node_name1}'}})-[*]->(V2:Category {{name: '{node_name2}'}})
+                UNWIND nodes(path) AS nodes_on_path
+                RETURN nodes_on_path.popularity, length(path)
+            $$) AS result(popularity_on_path float, path_len int)
+        )
+        SELECT popularity_on_path
+        FROM paths_cte
+        ORDER BY path_len ASC
+        LIMIT 1;
+    """
+    print(query)
+    print(run_apache_age_query(query))
+
+def task_18(node_name1, node_name2):
+    # 18. znajdzie skierowaną ścieżkę pomiędzy dwoma węzłami o największej popularno±ci spośród
+    # wszystkich ścieżek pomiędzy tymi węzłami
+    query = f"""
+        SELECT * FROM cypher('iw_graph', $$
+            MATCH path = (n {{name: \'{node_name1}\'}})-[*]->(m {{name: \'{node_name2}\'}})
+            RETURN path, SUM(node.popularity::float) AS path_popularity
+            ORDER BY path_popularity DESC
+            LIMIT 1
+        $$) AS result(path agtype, path_popularity float);
     """
     print(query)
     print(run_apache_age_query(query))
@@ -223,6 +337,16 @@ def main(task_number, *args):
         task_12(args[0], args[1])
     elif task_number == 13:
         task_13(args[0], args[1])
+    elif task_number == 14:
+        task_14(args[0], args[1])
+    elif task_number == 15:
+        task_15(args[0], args[1])
+    elif task_number == 16:
+        task_16(args[0], int(args[1]))
+    elif task_number == 17:
+        task_17(args[0], args[1])
+    elif task_number == 18:
+        task_18(args[0], args[1])
     else:
         print("Invalid goal number. Please provide a goal between 1 and 16")
         sys.exit(1)

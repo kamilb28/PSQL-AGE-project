@@ -68,7 +68,7 @@ def count_rows(popularity_df, taxonomy_df):
 
 def clean_data(dataframe, columns):
     for col in columns:
-        dataframe[col] = dataframe[col].str.replace("'", "", regex=False)  # Remove single quotes
+        dataframe[col] = dataframe[col].str.replace("'", "-", regex=False)  # Remove single quotes
         dataframe[col] = dataframe[col].str.replace("$", "S", regex=False)  # Replace $ with S
     return dataframe
 
