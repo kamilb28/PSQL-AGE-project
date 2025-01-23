@@ -403,19 +403,12 @@ def task_14(start_name, end_name, max_path_length=10, incremental_step=1):
             $$) AS (p agtype);
         """
 
-        print(f"\nExecuting Query for path length {current_path_length}:\n")
-        print(query)
-
         result = run_apache_age_query(query)
 
         if result:
             current_paths = [row[0] for row in result]
             num_found = len(current_paths)
-            print(f"Found {num_found} path(s) with path length {current_path_length}.")
-
             paths.extend(current_paths)
-        else:
-            print(f"No paths found for path length {current_path_length}.")
 
         current_path_length += incremental_step
 
@@ -427,7 +420,6 @@ def task_14(start_name, end_name, max_path_length=10, incremental_step=1):
         print(f"\nNo paths found from '{start_name}' to '{end_name}' within path lengths 1 to {max_path_length}.")
 
     return paths
-from math import ceil
 
 def task_15(start_name, end_name, max_path_length=10, incremental_step=1):
     paths = []
