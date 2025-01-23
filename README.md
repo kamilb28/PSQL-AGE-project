@@ -1,35 +1,53 @@
-## Obraz dokera
+# Uruchamianie
+
+## 1. Pobranie obrazu dockera'
 
 `docker pull apache/age`
 
 `docker run --name age-container -e POSTGRES_PASSWORD=$haslo -p 5432:5432 -d apache/age`
 
-## Skrypt
+w **$haslo** należy wpisać hasło do bazy psql, ale zalecane jest `root` bo takie jest stosowane w skryptach
 
-import_directly dla importu pojedynczo po kazdym wierszu csv(dziala mega dlugo)
+## 2. Pobranie bibliotek
 
-import_taxonomy dla stowrzenia tabel tymczasowych psql i z nich grafu w age (nie dziala)
+Na systemie powinien być zainstalowany python, zalecamy również stowrzenie wirtualnego środowiska:
 
-## Komendy
+`python3 -m venv venv`
 
-`docker exec -it age psql -U postgres`
+`source venv/bin/activate`
 
-`\c wikipedia_taxonomy`
+Pobranie bibliotek:
+
+`pip install -r requirements.txt`
+
+## 3. Import danych 
+
+Należy w głównym folderze mieć dwa pliki: **popularity_iw/csv.gz**, **taxonomy_iw/csv.gz**
+
+Uruchomić skrypt:
+
+`python import_v3.py`
+
+## 4. Narzędzie
+
+Należy uruchomić:
+
+`python dbctl.py $number_zadania $arg1 $arg2`
+
+# Przydatne komendy
+
+`docker exec -it age psql -U postgres` - wejście do bazy
+
+Uruchomienie AGE w bazie:
 
 `LOAD 'age';`
 
 `SET search_path = ag_catalog, "$user", public;`
 
-`SELECT * FROM cypher('wiki_taxonomy_graph', $$ MATCH (n:Category) RETURN n.name $$) AS (name agtype);`
+Usunięcie grafu:
 
-`SELECT * FROM cypher('wiki_taxonomy_graph', $$
-    MATCH (c:Category)-[rel:SUBCATEGORY]->(sc:Category)
-    RETURN c.name, sc.name
-$$) AS (c agtype, sc agtype);`
+`SELECT * FROM drop_graph('iw_graph', true);`
 
-`SELECT * FROM drop_graph('wiki_taxonomy_graph', true);`
+Dodanie RAMu do kontenera:
 
-
-
-### add more resorces 
 `docker update --memory=2g --memory-swap=3g age-container`
