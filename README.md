@@ -36,7 +36,7 @@ Należy uruchomić:
 
 # Przydatne komendy
 
-`docker exec -it age psql -U postgres` - wejście do bazy
+`docker exec -it age-container psql -U postgres` - wejście do bazy
 
 Uruchomienie AGE w bazie:
 
