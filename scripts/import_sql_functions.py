@@ -3,8 +3,8 @@ import psycopg2
 import csv
 import os
 
-from import_taxonomy import create_database_if_not_exists, execute_sql_file, DB_CONFIG, SQL_DIR, TAXONOMY_FILE, POPULARITY_FILE
-from clean_csv import clean_csv
+from scripts.import_taxonomy import create_database_if_not_exists, execute_sql_file, DB_CONFIG, SQL_DIR, TAXONOMY_FILE, POPULARITY_FILE
+from scripts.clean_csv import clean_csv
 
 def unpack_and_clean(gz_file):
     csv_file = gz_file.replace('.gz', '')

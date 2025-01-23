@@ -6,7 +6,7 @@ import json
 import age
 import re
 
-from import_taxonomy import create_database_if_not_exists, execute_sql_file
+from scripts.import_taxonomy import create_database_if_not_exists, execute_sql_file
 
 DB_CONFIG = {
     'dbname': 'wikipedia_taxonomy',

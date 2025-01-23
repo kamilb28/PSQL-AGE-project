@@ -3,7 +3,7 @@ import psycopg2
 import csv
 import os
 from tqdm import tqdm
-from import_taxonomy import create_database_if_not_exists, execute_sql_file
+from scripts.import_taxonomy import create_database_if_not_exists, execute_sql_file
 
 """
 Import data directly into the graph from a gzipped CSV.

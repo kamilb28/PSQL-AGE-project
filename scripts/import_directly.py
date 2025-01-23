@@ -4,7 +4,7 @@ import csv
 import os
 import json
 
-from import_taxonomy import create_database_if_not_exists, execute_sql_file
+from scripts.import_taxonomy import create_database_if_not_exists, execute_sql_file
 
 
 """
