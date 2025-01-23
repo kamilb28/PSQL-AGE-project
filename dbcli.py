@@ -2,8 +2,8 @@ import argparse
 import psycopg2
 import sys
 import json
-from tqdm import tqdm
 from math import ceil
+from tqdm import tqdm
 
 # Database connection parameters
 DB_PARAMS = {
@@ -116,8 +116,6 @@ def task_7():
     print(query)
     print(run_apache_age_query(query))
 
-from math import ceil
-
 def task_8():
     query_total = """
         SELECT total_n
@@ -127,28 +125,37 @@ def task_8():
         $$) AS (total_n agtype);
     """
     result_total = run_apache_age_query(query_total)
-
     total_nodes = int(str(result_total[0][0]).strip('"'))
-
-    PAGE_SIZE = 500000
+    
+    PAGE_SIZE = 500000  # best by tests 
     num_pages = ceil(total_nodes / PAGE_SIZE)
 
     no_inbound_ids = []
+
     current_offset = 0
 
-    for _ in range(num_pages):
+    for _ in tqdm(range(num_pages), desc="Retrieving & checking node pages"):
         query_page = f"""
             SELECT no_inbound_id
             FROM cypher('iw_graph', $$
+                /* Step 1: Match all nodes */
                 MATCH (n)
+
+                /* Step 2: Transition to WITH so we can apply ORDER, SKIP, LIMIT */
                 WITH n
                 ORDER BY id(n)
                 SKIP {current_offset}
                 LIMIT {PAGE_SIZE}
+
+                /* Step 3: Collect them into a list for optional match */
                 WITH collect(n) AS page_nodes
+
+                /* Step 4: UNWIND and do OPTIONAL MATCH to check inbound edges */
                 UNWIND page_nodes AS candidate
-                OPTIONAL MATCH (m)-[:RELATIONSHIP_TYPE]->(candidate)
+                OPTIONAL MATCH (m)-[r]->(candidate)
                 WITH candidate, COUNT(m) AS inbound_count
+
+                /* Step 5: Keep only those with zero inbound edges */
                 WHERE inbound_count = 0
                 RETURN id(candidate) AS no_inbound_id
             $$) AS (no_inbound_id agtype);
@@ -162,8 +169,32 @@ def task_8():
 
         current_offset += PAGE_SIZE
 
-    for nid in no_inbound_ids:
-        print(f" - Node ID={nid}")
+    name_chunk_size = 500000
+    final_named = []
+
+    def chunker(seq, size):
+        for i in range(0, len(seq), size):
+            yield seq[i:i+size]
+
+    for sub_ids in tqdm(list(chunker(no_inbound_ids, name_chunk_size)), desc="Retrieving names"):
+        id_list_str = ", ".join(str(x) for x in sub_ids)
+        query_names = f"""
+            SELECT node_id, node_name
+            FROM cypher('iw_graph', $$
+                MATCH (n)
+                WHERE id(n) IN [{id_list_str}]
+                RETURN id(n) AS node_id, n.name AS node_name
+            $$) AS (node_id agtype, node_name agtype);
+        """
+        sub_result = run_apache_age_query(query_names)
+
+        for row in sub_result:
+            raw_id = str(row[0]).strip('"')
+            raw_name = str(row[1]).strip('"')
+            final_named.append((int(raw_id), raw_name))
+
+    for nid, nm in final_named:
+        print(f" - Node ID={nid}, name={nm}")
 
 def task_9():
     query_total = """
@@ -174,29 +205,37 @@ def task_9():
         $$) AS (total_n agtype);
     """
     result_total = run_apache_age_query(query_total)
-
     total_nodes = int(str(result_total[0][0]).strip('"'))
-    print(f"Total nodes in graph: {total_nodes}")
-
-    PAGE_SIZE = 500000
+    
+    PAGE_SIZE = 500000  # bests by tests 
     num_pages = ceil(total_nodes / PAGE_SIZE)
 
     no_inbound_ids = []
+
     current_offset = 0
 
-    for _ in range(num_pages):
+    for _ in tqdm(range(num_pages), desc="Retrieving & checking node pages"):
         query_page = f"""
             SELECT no_inbound_id
             FROM cypher('iw_graph', $$
+                /* Step 1: Match all nodes */
                 MATCH (n)
+
+                /* Step 2: Transition to WITH so we can apply ORDER, SKIP, LIMIT */
                 WITH n
                 ORDER BY id(n)
                 SKIP {current_offset}
                 LIMIT {PAGE_SIZE}
+
+                /* Step 3: Collect them into a list for optional match */
                 WITH collect(n) AS page_nodes
+
+                /* Step 4: UNWIND and do OPTIONAL MATCH to check inbound edges */
                 UNWIND page_nodes AS candidate
-                OPTIONAL MATCH (m)-[:RELATIONSHIP_TYPE]->(candidate)
+                OPTIONAL MATCH (m)-[r]->(candidate)
                 WITH candidate, COUNT(m) AS inbound_count
+
+                /* Step 5: Keep only those with zero inbound edges */
                 WHERE inbound_count = 0
                 RETURN id(candidate) AS no_inbound_id
             $$) AS (no_inbound_id agtype);
@@ -210,7 +249,32 @@ def task_9():
 
         current_offset += PAGE_SIZE
 
-    print(f"\nFound {len(no_inbound_ids)} nodes with no inbound edges.\n")
+    name_chunk_size = 500000
+    final_named = []
+
+    def chunker(seq, size):
+        for i in range(0, len(seq), size):
+            yield seq[i:i+size]
+
+    for sub_ids in tqdm(list(chunker(no_inbound_ids, name_chunk_size)), desc="Retrieving names"):
+        id_list_str = ", ".join(str(x) for x in sub_ids)
+        query_names = f"""
+            SELECT node_id, node_name
+            FROM cypher('iw_graph', $$
+                MATCH (n)
+                WHERE id(n) IN [{id_list_str}]
+                RETURN id(n) AS node_id, n.name AS node_name
+            $$) AS (node_id agtype, node_name agtype);
+        """
+        sub_result = run_apache_age_query(query_names)
+
+        for row in sub_result:
+            raw_id = str(row[0]).strip('"')
+            raw_name = str(row[1]).strip('"')
+            final_named.append((int(raw_id), raw_name))
+
+    print(f"\nTotal {len(final_named)} such nodes.\n")
+
 
 def task_10():
     """10. znajduje wezly z największą liczbą dzieci, może być ich więcej"""
