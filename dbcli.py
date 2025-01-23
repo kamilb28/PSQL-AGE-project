@@ -1,7 +1,5 @@
-import argparse
 import psycopg2
 import sys
-import json
 from math import ceil
 from tqdm import tqdm
 
