@@ -292,32 +292,77 @@ def task_10():
     print(query)
     print(run_apache_age_query(query))
 
-
-## tutaj do poprawienia bo jest ich naprawdę dużo
 def task_11():
-    """11. znajduje węzły z najmniejszą liczbę dzieci (liczba dzieci jest większa od zera),"""
-    query = f"""
-        WITH aggregated_data AS (
-            SELECT start_id, COUNT(end_id) AS num_childs
-            FROM iw_graph.has
-            GROUP BY start_id
-            HAVING COUNT(end_id) = (
-                SELECT COUNT(end_id)
-                FROM iw_graph.has
-                GROUP BY start_id
-                ORDER BY COUNT(end_id)
-                LIMIT 1
-            )
-        )
-        SELECT c.properties, a.num_childs
-        FROM aggregated_data a
-        LEFT JOIN iw_graph."Category" c ON a.start_id = c.id;
+    query_total = """
+        SELECT total_n
+        FROM cypher('iw_graph', $$
+            MATCH (n:Category)
+            RETURN COUNT(n) AS total_n
+        $$) AS (total_n agtype);
     """
-    print(query)
-    ans = run_apache_age_query(query)
-    ans = list(map(lambda item: (json.loads(item[0])["name"], item[1]), ans))
-    print(ans)
-    print(len(ans))
+    result_total = run_apache_age_query(query_total)
+    total_nodes = int(str(result_total[0][0]).strip('"'))
+    
+    PAGE_SIZE = 500000 # best by tests 
+    num_pages = ceil(total_nodes / PAGE_SIZE)
+
+    one_child_ids = []
+    current_offset = 0
+
+    for _ in tqdm(range(num_pages), desc="Retrieving & checking Category node pages"):
+        query_page = f"""
+            SELECT node_id
+            FROM cypher('iw_graph', $$
+                MATCH (n:Category)
+                WITH n
+                ORDER BY id(n)
+                SKIP {current_offset}
+                LIMIT {PAGE_SIZE}
+                MATCH (n)-[:has]->(c)
+                WITH n, COUNT(c) AS num_childs
+                WHERE num_childs = 1
+                RETURN id(n) AS node_id
+            $$) AS (node_id agtype);
+        """
+
+        page_result = run_apache_age_query(query_page)
+
+        for row in page_result:
+            raw_str = str(row[0]).strip('"')
+            one_child_ids.append(int(raw_str))
+
+        current_offset += PAGE_SIZE
+
+    name_chunk_size = 500000
+    final_named = []
+
+    def chunker(seq, size):
+        for i in range(0, len(seq), size):
+            yield seq[i:i+size]
+
+    for sub_ids in tqdm(list(chunker(one_child_ids, name_chunk_size)), desc="Retrieving names"):
+        if not sub_ids:
+            continue
+        id_list_str = ", ".join(str(x) for x in sub_ids)
+        query_names = f"""
+            SELECT node_id, node_name
+            FROM cypher('iw_graph', $$
+                MATCH (n:Category)
+                WHERE id(n) IN [{id_list_str}]
+                RETURN id(n) AS node_id, n.name AS node_name
+            $$) AS (node_id agtype, node_name agtype);
+        """
+        sub_result = run_apache_age_query(query_names)
+
+        for row in sub_result:
+            raw_id = str(row[0]).strip('"')
+            raw_name = str(row[1]).strip('"')
+            final_named.append((int(raw_id), raw_name))
+
+    for nid, nm in final_named:
+        print(f" - Node ID={nid}, name={nm}")
+
+    # print(len(final_named))
 
 def task_12(old_name, new_name):
     # """12. Renames a given node"""
