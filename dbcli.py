@@ -318,9 +318,37 @@ def task_14(start_name, end_name, max_path_length=10, incremental_step=1):
         print(f"\nNo paths found from '{start_name}' to '{end_name}' within path lengths 1 to {max_path_length}.")
 
     return paths
-def task_15(node_name1, node_name2):
-    # 15. zlicza węzły z celu 14
-    pass #TODO
+from math import ceil
+
+def task_15(start_name, end_name, max_path_length=10, incremental_step=1):
+    paths = []
+    current_path_length = 1
+
+    while current_path_length <= max_path_length:
+        start_name_escaped = start_name.replace("'", "''")
+        end_name_escaped = end_name.replace("'", "''")
+
+        query = f"""
+            SELECT p
+            FROM cypher('iw_graph', $$
+                MATCH p = (startNode)-[*{current_path_length}]->(endNode)
+                WHERE startNode.name = '{start_name_escaped}' 
+                  AND endNode.name = '{end_name_escaped}'
+                RETURN p
+            $$) AS (p agtype);
+        """
+
+        result = run_apache_age_query(query)
+
+        if result:
+            current_paths = [row[0] for row in result]
+            paths.extend(current_paths)
+
+        current_path_length += incremental_step
+
+    print(f"\nTotal paths found from '{start_name}' to '{end_name}': {len(paths)}")
+
+    return paths
 
 def task_16(node_name, r):
     # 16. policzy popularność w sąsiedztwie węzła o zadanym promieniu; parametrami są: nazwa
