@@ -1,3 +1,4 @@
+import os
 import psycopg2
 import sys
 from math import ceil
@@ -5,11 +6,11 @@ from tqdm import tqdm
 
 # Database connection parameters
 DB_PARAMS = {
-    "dbname": "postgres",
-    "user": "postgres",
-    "password": "root",
-    "host": "localhost",
-    "port": 5432
+    "dbname": os.getenv("DB_NAME", "postgres"),
+    "user": os.getenv("DB_USER", "postgres"),
+    "password": os.getenv("DB_PASSWORD", "root"),
+    "host": os.getenv("DB_HOST", "localhost"),
+    "port": int(os.getenv("DB_PORT", 5432)),
 }
 
 def connect_to_db():

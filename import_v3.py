@@ -155,12 +155,12 @@ def copy_data_into_container():
 
 def insert_data_into_db():
     db_params = {
-        "dbname": "postgres",
-        "user": "postgres",
-        "password": "root", # edit
-        "host": "localhost",
-        "port": 5432
-    }
+        "dbname": os.getenv("DB_NAME", "postgres"),
+        "user": os.getenv("DB_USER", "postgres"),
+        "password": os.getenv("DB_PASSWORD", "root"),
+        "host": os.getenv("DB_HOST", "localhost"),
+        "port": int(os.getenv("DB_PORT", 5432)),
+    }    
     try:
         # Connect to the PostgreSQL database
         conn = psycopg2.connect(**db_params)
@@ -230,7 +230,7 @@ if __name__ == "__main__":
 
     make_age_compatable_df(taxonomy_df)
 
-    copy_data_into_container()
+#    copy_data_into_container()
 
     insert_data_into_db()
     
